@@ -14,10 +14,12 @@ import (
 	"github.com/nikolayk812/go-tests/internal/service"
 	"github.com/nikolayk812/go-tests/pkg/dto"
 	"github.com/shopspring/decimal"
+	"github.com/steinfletcher/apitest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/text/currency"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,44 +28,45 @@ import (
 func TestCartHandler_GetCart(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	cart1 := fakeCart()
+	cart1.Items = nil
+	cart1DTO := mapper.CartToDTO(cart1)
+
+	cart2 := fakeCart()
+	cart2DTO := mapper.CartToDTO(cart2)
+
 	ownerID := gofakeit.UUID()
-	item1 := fakeCartItem()
-	item1DTO := mapper.CartItemToDTO(item1)
 
 	tests := []struct {
 		name       string
+		ownerID    string
 		mockSetup  func(service *service.MockCartService)
 		wantStatus int
 		wantCart   dto.Cart
 	}{
 		{
-			name: "okay, no items",
+			name:    "okay, no items",
+			ownerID: cart1.OwnerID,
 			mockSetup: func(service *service.MockCartService) {
-				service.On("GetCart", mock.Anything, ownerID).
-					Return(domain.Cart{OwnerID: ownerID}, nil)
+				service.On("GetCart", mock.Anything, cart1.OwnerID).
+					Return(cart1, nil)
 			},
 			wantStatus: http.StatusOK,
-			wantCart: dto.Cart{
-				OwnerID: ownerID,
-			},
+			wantCart:   cart1DTO,
 		},
 		{
-			name: "okay, with one item",
+			name:    "okay, with one item",
+			ownerID: cart2.OwnerID,
 			mockSetup: func(service *service.MockCartService) {
-				service.On("GetCart", mock.Anything, ownerID).
-					Return(domain.Cart{
-						OwnerID: ownerID,
-						Items:   []domain.CartItem{item1},
-					}, nil)
+				service.On("GetCart", mock.Anything, cart2.OwnerID).
+					Return(cart2, nil)
 			},
 			wantStatus: http.StatusOK,
-			wantCart: dto.Cart{
-				OwnerID: ownerID,
-				Items:   []dto.CartItem{item1DTO},
-			},
+			wantCart:   cart2DTO,
 		},
 		{
-			name: "service error",
+			name:    "service error",
+			ownerID: ownerID,
 			mockSetup: func(service *service.MockCartService) {
 				service.On("GetCart", mock.Anything, ownerID).
 					Return(domain.Cart{}, errors.New("service error"))
@@ -85,7 +88,7 @@ func TestCartHandler_GetCart(t *testing.T) {
 			recorder := httptest.NewRecorder()
 
 			c, _ := gin.CreateTestContext(recorder)
-			c.Params = gin.Params{gin.Param{Key: "owner_id", Value: ownerID}}
+			c.Params = gin.Params{gin.Param{Key: "owner_id", Value: tt.ownerID}}
 
 			req, err := http.NewRequest(http.MethodGet, "/", nil)
 			require.NoError(t, err)
@@ -129,5 +132,110 @@ func fakeCartItem() domain.CartItem {
 			Amount:   decimal.NewFromFloat(price),
 			Currency: currencyUnit,
 		},
+	}
+}
+
+func fakeCart() domain.Cart {
+	var items []domain.CartItem
+
+	for range gofakeit.Number(1, 5) {
+		items = append(items, fakeCartItem())
+	}
+
+	return domain.Cart{
+		OwnerID: gofakeit.UUID(),
+		Items:   items,
+	}
+}
+
+func TestCartHandler_GetCart2(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cart1 := fakeCart()
+	cart1.Items = nil
+	cart1DTO := mapper.CartToDTO(cart1)
+
+	cart2 := fakeCart()
+	cart2DTO := mapper.CartToDTO(cart2)
+
+	ownerID := gofakeit.UUID()
+
+	tests := []struct {
+		name       string
+		ownerID    string
+		mockSetup  func(service *service.MockCartService)
+		wantStatus int
+		wantCart   dto.Cart
+	}{
+		{
+			name:    "okay, no items",
+			ownerID: cart1.OwnerID,
+			mockSetup: func(service *service.MockCartService) {
+				service.On("GetCart", mock.Anything, cart1.OwnerID).
+					Return(cart1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantCart:   cart1DTO,
+		},
+		{
+			name:    "okay, with one item",
+			ownerID: cart2.OwnerID,
+			mockSetup: func(service *service.MockCartService) {
+				service.On("GetCart", mock.Anything, cart2.OwnerID).
+					Return(cart2, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantCart:   cart2DTO,
+		},
+		{
+			name:    "service error",
+			ownerID: ownerID,
+			mockSetup: func(service *service.MockCartService) {
+				service.On("GetCart", mock.Anything, ownerID).
+					Return(domain.Cart{}, errors.New("service error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := new(service.MockCartService)
+			handler, err := rest.NewCart(mockService)
+			require.NoError(t, err)
+
+			if tt.mockSetup != nil {
+				tt.mockSetup(mockService)
+			}
+
+			//expectedCart, err := json.Marshal(tt.wantCart)
+			//require.NoError(t, err)
+
+			apitest.New().
+				HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					c, _ := gin.CreateTestContext(w)
+					c.Request = r
+					c.Params = gin.Params{gin.Param{Key: "owner_id", Value: tt.ownerID}}
+
+					handler.GetCart(c)
+				}).
+				Get("/").
+				Expect(t).
+				Status(tt.wantStatus).
+				Assert(func(res *http.Response, r *http.Request) error {
+					// Read the body
+					body, err := ioutil.ReadAll(res.Body)
+					assert.NoError(t, err)
+
+					var actualCart dto.Cart
+					err = json.Unmarshal(body, &actualCart)
+					require.NoError(t, err)
+					assertEqualCart(t, tt.wantCart, actualCart)
+					return nil
+				}).
+				End()
+
+			mockService.AssertExpectations(t)
+		})
 	}
 }

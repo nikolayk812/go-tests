@@ -25,7 +25,8 @@ func NewCart(service service.CartService) (*CartHandler, error) {
 func (h *CartHandler) GetCart(c *gin.Context) {
 	ownerID := c.Param("owner_id")
 
-	cart, err := h.service.GetCart(c, ownerID)
+	ctx := c.Request.Context()
+	cart, err := h.service.GetCart(ctx, ownerID)
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "An unexpected error occurred"})
@@ -54,7 +55,8 @@ func (h *CartHandler) AddItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.AddItem(c, ownerID, item); err != nil {
+	ctx := c.Request.Context()
+	if err := h.service.AddItem(ctx, ownerID, item); err != nil {
 		_ = c.Error(err)
 
 		if errors.Is(err, service.ErrCartDuplicateItem) {
@@ -79,7 +81,8 @@ func (h *CartHandler) DeleteItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteItem(c, ownerID, productUUID); err != nil {
+	ctx := c.Request.Context()
+	if err := h.service.DeleteItem(ctx, ownerID, productUUID); err != nil {
 		_ = c.Error(err)
 
 		if errors.Is(err, service.ErrCartItemNotFound) {
