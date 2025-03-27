@@ -66,9 +66,9 @@ func main() {
 		return
 	}
 
-	cartHandler, err := rest.NewCartHandler(cartService)
+	cartHandler, err := rest.NewCart(cartService)
 	if err != nil {
-		gErr = fmt.Errorf("rest.NewCartHandler: %w", err)
+		gErr = fmt.Errorf("rest.NewCart: %w", err)
 		return
 	}
 

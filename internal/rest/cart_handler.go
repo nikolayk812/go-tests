@@ -14,7 +14,7 @@ type CartHandler struct {
 	service service.CartService
 }
 
-func NewCartHandler(service service.CartService) (*CartHandler, error) {
+func NewCart(service service.CartService) (*CartHandler, error) {
 	if service == nil {
 		return nil, errors.New("service is nil")
 	}
