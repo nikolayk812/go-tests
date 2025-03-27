@@ -3,6 +3,7 @@ package rest
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/nikolayk812/go-tests/internal/rest/mapper"
 	"github.com/nikolayk812/go-tests/internal/service"
 	"github.com/nikolayk812/go-tests/pkg/dto"
@@ -23,10 +24,6 @@ func NewCartHandler(service service.CartService) (*CartHandler, error) {
 
 func (h *CartHandler) GetCart(c *gin.Context) {
 	ownerID := c.Param("owner_id")
-	if ownerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "owner_id is empty"})
-		return
-	}
 
 	cart, err := h.service.GetCart(c, ownerID)
 	if err != nil {
@@ -42,10 +39,6 @@ func (h *CartHandler) GetCart(c *gin.Context) {
 
 func (h *CartHandler) AddItem(c *gin.Context) {
 	ownerID := c.Param("owner_id")
-	if ownerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "owner_id is empty"})
-		return
-	}
 
 	var itemDTO dto.CartItem
 	if err := c.BindJSON(&itemDTO); err != nil {
@@ -74,4 +67,29 @@ func (h *CartHandler) AddItem(c *gin.Context) {
 	}
 
 	c.Status(http.StatusCreated)
+}
+
+func (h *CartHandler) DeleteItem(c *gin.Context) {
+	ownerID := c.Param("owner_id")
+	productID := c.Param("product_id")
+
+	productUUID, err := uuid.Parse(productID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product_id"})
+		return
+	}
+
+	if err := h.service.DeleteItem(c, ownerID, productUUID); err != nil {
+		_ = c.Error(err)
+
+		if errors.Is(err, service.ErrCartItemNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "cart item not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An unexpected error occurred"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

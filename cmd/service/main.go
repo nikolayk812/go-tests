@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nikolayk812/go-tests/internal/repository"
 	"github.com/nikolayk812/go-tests/internal/rest"
 	"github.com/nikolayk812/go-tests/internal/service"
@@ -24,10 +29,9 @@ func main() {
 	//gin.SetMode(gin.ReleaseMode)
 	decimal.MarshalJSONWithoutQuotes = true
 
-	ctx := context.Background()
+	connStr := "postgres://user:password@localhost:5432/dbname?sslmode=disable"
 
 	var gErr error
-
 	defer func() {
 		if gErr != nil {
 			slog.Error("startup error", "err", gErr)
@@ -37,7 +41,14 @@ func main() {
 		os.Exit(0)
 	}()
 
-	pool, err := pgxpool.New(ctx, "postgres://user:password@localhost:5432/dbname")
+	if err := runMigrations(connStr); err != nil {
+		gErr = fmt.Errorf("runMigrations: %w", err)
+		return
+	}
+
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
 		gErr = fmt.Errorf("pgxpool.New: %w", err)
 		return
@@ -108,4 +119,30 @@ func runServer(ctx context.Context, handler http.Handler) error {
 	case err := <-serverErr:
 		return fmt.Errorf("server.ListenAndServe: %w", err)
 	}
+}
+
+func runMigrations(connStr string) error {
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		return fmt.Errorf("sql.Open: %w", err)
+	}
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("postgres.WithInstance: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://./internal/repository/migrations",
+		"postgres", driver)
+	if err != nil {
+		return fmt.Errorf("migrate.NewWithDatabaseInstance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("m.Up: %w", err)
+	}
+
+	return nil
 }

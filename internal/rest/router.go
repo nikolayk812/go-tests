@@ -16,6 +16,7 @@ func SetupRouter(cartHandler *CartHandler) *gin.Engine {
 	cartGroup := router.Group("carts")
 	cartGroup.GET("/:owner_id", cartHandler.GetCart)
 	cartGroup.POST("/:owner_id", cartHandler.AddItem)
+	cartGroup.DELETE("/:owner_id/:product_id", cartHandler.DeleteItem)
 
 	return router
 }

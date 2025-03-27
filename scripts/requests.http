@@ -1,0 +1,22 @@
+@owner_id = nikolayk812
+@product_id = 9019fd8c-1de6-4abd-bdb5-df017cd9e502
+
+### Get Cart
+GET http://localhost:8080/carts/{{owner_id}}
+Content-Type: application/json
+
+### Add Item to Cart
+POST http://localhost:8080/carts/{{owner_id}}
+Content-Type: application/json
+
+{
+  "product_id": "{{product_id}}",
+  "price": {
+    "amount": 57.00,
+    "currency": "EUR"
+  }
+}
+
+### Delete Item from Cart
+DELETE http://localhost:8080/carts/{{owner_id}}/{{product_id}}
+Content-Type: application/json
