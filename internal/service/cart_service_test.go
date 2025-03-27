@@ -78,7 +78,7 @@ func TestCartService_AddItem(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(port.MockCartRepository)
 
-			cs, err := service.NewCartService(mockRepo)
+			cs, err := service.NewCart(mockRepo)
 			require.NoError(t, err)
 
 			if tt.mockSetup != nil {

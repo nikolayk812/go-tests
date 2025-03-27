@@ -10,6 +10,7 @@ import (
 	"github.com/nikolayk812/go-tests/internal/repository"
 )
 
+//go:generate mockery --name=CartService --structname=MockCartService --output=. --outpkg=service --filename=cart_service_mock.go
 type CartService interface {
 	GetCart(ctx context.Context, ownerID string) (domain.Cart, error)
 	AddItem(ctx context.Context, ownerID string, item domain.CartItem) error
@@ -20,7 +21,7 @@ type cartService struct {
 	repo port.CartRepository
 }
 
-func NewCartService(repo port.CartRepository) (CartService, error) {
+func NewCart(repo port.CartRepository) (CartService, error) {
 	if repo == nil {
 		return nil, errors.New("repo is nil")
 	}
