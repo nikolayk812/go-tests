@@ -24,6 +24,7 @@ func TestCartGroupRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	cart1 := fakeCart()
+	owner1 := cart1.OwnerID
 	cartItem1DTO := mapper.CartItemToDTO(cart1.Items[0])
 	product1UID := cartItem1DTO.ProductID
 
@@ -44,9 +45,9 @@ func TestCartGroupRoutes(t *testing.T) {
 		{
 			name:   "GetCart",
 			method: http.MethodGet,
-			url:    "/carts/123",
+			url:    "/carts/" + owner1,
 			mockFunc: func() {
-				mockService.On("GetCart", mock.Anything, "123").
+				mockService.On("GetCart", mock.Anything, owner1).
 					Return(cart1, nil)
 			},
 			statusCode: http.StatusOK,

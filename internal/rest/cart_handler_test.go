@@ -78,12 +78,12 @@ func TestCartHandler_GetCart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := new(service.MockCartService)
-			handler, err := rest.NewCart(mockService)
-			require.NoError(t, err)
-
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockService)
 			}
+
+			handler, err := rest.NewCart(mockService)
+			require.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
 
@@ -208,9 +208,6 @@ func TestCartHandler_GetCart2(t *testing.T) {
 				tt.mockSetup(mockService)
 			}
 
-			//expectedCart, err := json.Marshal(tt.wantCart)
-			//require.NoError(t, err)
-
 			apitest.New().
 				HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					c, _ := gin.CreateTestContext(w)
@@ -230,7 +227,9 @@ func TestCartHandler_GetCart2(t *testing.T) {
 					var actualCart dto.Cart
 					err = json.Unmarshal(body, &actualCart)
 					require.NoError(t, err)
+
 					assertEqualCart(t, tt.wantCart, actualCart)
+
 					return nil
 				}).
 				End()
